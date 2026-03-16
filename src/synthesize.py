@@ -302,30 +302,83 @@ class SynthesisEngine:
         else:
             confidence_level = ConfidenceLevel.LOW
         
-        # Build reasoning
+        # Build narrative reasoning grouped by method
+        web_sqs    = [sq for sq in sub_questions if sq.get('method') == 'web_search']
+        code_sqs   = [sq for sq in sub_questions if sq.get('method') == 'code_execution']
+        logic_sqs  = [sq for sq in sub_questions if sq.get('method') == 'logical_reasoning']
+
         reasoning_parts = [
-            f"Analysis of {total_questions} sub-questions:",
-            f"- {len(supporting)} questions found supporting evidence",
-            f"- {len(refuting)} questions found refuting evidence",
-            f"- {len(partial)} questions found partial evidence",
-            f"- {len(inconclusive)} questions were inconclusive"
+            f"**Overview:** {total_questions} sub-questions were investigated across "
+            f"{len([m for m in [web_sqs, code_sqs, logic_sqs] if m])} research methods "
+            f"(web search, quantitative analysis, logical reasoning).",
+            "",
         ]
-        
+
+        if web_sqs:
+            web_supported = sum(1 for sq in web_sqs if sq.get('status') == 'supported')
+            web_partial   = sum(1 for sq in web_sqs if sq.get('status') == 'partial')
+            reasoning_parts.append(
+                f"**Web Search ({len(web_sqs)} queries):** "
+                f"{web_supported} returned supporting evidence, {web_partial} partial. "
+                + (web_sqs[0].get('findings', '')[:220].rstrip() + "…" if web_sqs[0].get('findings') else "")
+            )
+
+        if code_sqs:
+            code_status = code_sqs[0].get('status', 'partial')
+            reasoning_parts.append(
+                f"**Quantitative Analysis ({len(code_sqs)} task(s)):** Status: {code_status.upper()}. "
+                + (code_sqs[0].get('findings', '')[:180].rstrip() + "…" if code_sqs[0].get('findings') else "")
+                + " Note: analyses were run on simulated data and are illustrative only."
+            )
+
+        if logic_sqs:
+            logic_partial = sum(1 for sq in logic_sqs if sq.get('status') in ('partial', 'supported'))
+            reasoning_parts.append(
+                f"**Logical Reasoning ({len(logic_sqs)} analyses):** "
+                f"{logic_partial} analyses produced substantive logical assessments. "
+                + (logic_sqs[0].get('findings', '')[:200].rstrip() + "…" if logic_sqs[0].get('findings') else "")
+            )
+
+        reasoning_parts += [
+            "",
+            f"**Evidence tally:** {len(supporting)} supporting · {len(refuting)} refuting · "
+            f"{len(partial)} partial · {len(inconclusive)} inconclusive.",
+        ]
         if supporting:
-            reasoning_parts.append(f"\nKey supporting evidence from: {supporting[0]['id']}")
+            reasoning_parts.append(f"Strongest supporting evidence: {supporting[0]['id']} — {supporting[0].get('question','')[:80]}…")
         if refuting:
-            reasoning_parts.append(f"Key refuting evidence from: {refuting[0]['id']}")
-        
+            reasoning_parts.append(f"Key refuting evidence: {refuting[0]['id']} — {refuting[0].get('question','')[:80]}…")
+
         reasoning = "\n".join(reasoning_parts)
-        
-        # Build limitations
+
+        # Build specific limitations (4-5 bullets)
         limitations = []
-        if len(inconclusive) > len(supporting) + len(refuting):
-            limitations.append("High proportion of inconclusive evidence limits certainty")
+        if simulated_source_count > 0:
+            limitations.append(
+                "Some sources are simulated/illustrative — findings should be verified against real primary literature."
+            )
         if len(partial) > 0:
-            limitations.append("Partial evidence suggests context-dependent effects")
+            limitations.append(
+                "Partial evidence across multiple sub-questions indicates the relationship is context-dependent "
+                "rather than universal."
+            )
+        if len(web_sqs) > 1:
+            limitations.append(
+                "Multiple web-search sub-questions drew from the same domain source pool, "
+                "which may understate source diversity."
+            )
+        if code_sqs:
+            limitations.append(
+                "Quantitative analyses used randomly generated data as proxies; real empirical datasets "
+                "are required for statistically valid conclusions."
+            )
+        if len(supporting) > 0 and len(refuting) == 0:
+            limitations.append(
+                "No refuting evidence was surfaced — this reflects the simulated search design, not necessarily "
+                "an absence of counter-evidence in the real literature."
+            )
         if not limitations:
-            limitations.append("Standard limitations of secondary research apply")
+            limitations.append("Standard limitations of secondary research and simulated evidence synthesis apply.")
         
         return SynthesisResult(
             verdict=verdict,

@@ -159,9 +159,31 @@ if __name__ == "__main__":
         default=5,
         help="Number of sub-questions to generate (3-6, default: 5)"
     )
-    
+    parser.add_argument(
+        "--log", "-l",
+        type=str,
+        default=None,
+        help="Optional path to save the full console log (default: none)"
+    )
+
     args = parser.parse_args()
     
+    if args.log:
+        log_path = args.log
+    elif args.output:
+        base = os.path.splitext(args.output)[0]
+        log_path = base + ".log"
+    else:
+        log_path = None
+
+    if log_path:
+        os.makedirs(os.path.dirname(os.path.abspath(log_path)), exist_ok=True)
+        file_handler = logging.FileHandler(log_path, encoding='utf-8')
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        logging.getLogger().addHandler(file_handler)
+        print(f"Logging to: {log_path}")
+
     # Get hypothesis from CLI argument or interactive prompt
     if args.hypothesis:
         hypothesis = args.hypothesis
@@ -182,3 +204,5 @@ if __name__ == "__main__":
         num_questions=args.questions
     )
     print(f"\nReport generated: {report_path}")
+    if log_path:
+        print(f"Log saved to:     {log_path}")

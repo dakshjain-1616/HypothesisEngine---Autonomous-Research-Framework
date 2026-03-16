@@ -76,7 +76,19 @@ class ReportGenerator:
         
         # Original Hypothesis
         sections.append(self._build_hypothesis_section(kwargs['hypothesis']))
-        
+
+        # Executive Summary (new)
+        sections.append(self._build_executive_summary(
+            kwargs['hypothesis'],
+            kwargs['status'],
+            kwargs['verdict_summary'],
+            kwargs['confidence_level'],
+            kwargs['confidence_score'],
+            kwargs['domain'],
+            kwargs['sub_questions'],
+            kwargs['limitations']
+        ))
+
         # Research Plan
         sections.append(self._build_research_plan_section(
             kwargs['domain'],
@@ -129,6 +141,53 @@ class ReportGenerator:
 
 """
     
+    def _build_executive_summary(self, hypothesis: str, status: str, verdict_summary: str,
+                                  confidence_level: str, confidence_score: float,
+                                  domain: str, sub_questions: List[Dict],
+                                  limitations: List[str]) -> str:
+        """Build an executive summary at the top of the report."""
+        status_label = {
+            'supported': 'SUPPORTED',
+            'refuted': 'REFUTED',
+            'partial': 'PARTIALLY SUPPORTED',
+            'inconclusive': 'INCONCLUSIVE',
+        }.get(status.lower(), status.upper())
+
+        n_supported  = sum(1 for sq in sub_questions if sq.get('status') == 'supported')
+        n_partial    = sum(1 for sq in sub_questions if sq.get('status') == 'partial')
+        n_refuted    = sum(1 for sq in sub_questions if sq.get('status') == 'refuted')
+        n_total      = len(sub_questions)
+        methods_used = sorted(set(sq.get('method', '').replace('_', ' ') for sq in sub_questions))
+
+        # Pull the first real web-search finding snippet as key evidence
+        key_evidence = ""
+        for sq in sub_questions:
+            if sq.get('method') == 'web_search' and sq.get('findings'):
+                raw = sq['findings']
+                key_evidence = raw[:250].rsplit(' ', 1)[0] + "…"
+                break
+
+        first_limitation = limitations[0] if limitations else "Standard research limitations apply."
+
+        return f"""## Executive Summary
+
+| | |
+|---|---|
+| **Hypothesis** | {hypothesis} |
+| **Domain** | {domain.capitalize()} |
+| **Verdict** | {status_label} |
+| **Confidence** | {confidence_level} ({confidence_score:.2f} / 1.00) |
+| **Methods used** | {', '.join(m.title() for m in methods_used)} |
+| **Sub-questions** | {n_total} total — {n_supported} supporting, {n_partial} partial, {n_refuted} refuting |
+
+**Key finding:** {key_evidence}
+
+**Primary limitation:** {first_limitation}
+
+---
+
+"""
+
     def _build_research_plan_section(self, domain: str, core_claims: List[str],
                                      variables: Dict[str, str],
                                      sub_questions: List[Dict]) -> str:
@@ -157,66 +216,82 @@ class ReportGenerator:
         return section
     
     def _build_findings_section(self, sub_questions: List[Dict]) -> str:
-        section = """## Key Findings per Sub-Question
+        section = "## Detailed Findings\n\n"
 
-"""
+        METHOD_BADGE = {
+            'web_search':        '🔍 Web Search',
+            'code_execution':    '📊 Quantitative Analysis',
+            'logical_reasoning': '🧠 Logical Reasoning',
+        }
+        STATUS_LABEL = {
+            'supported':    '✅ SUPPORTED',
+            'refuted':      '❌ REFUTED',
+            'partial':      '⚠️  PARTIALLY SUPPORTED',
+            'inconclusive': '❓ INCONCLUSIVE',
+        }
+
         for sq in sub_questions:
-            sq_id = sq.get('id', 'SQ00')
+            sq_id    = sq.get('id', 'SQ00')
             question = sq.get('question', '')
             findings = sq.get('findings', 'No findings recorded')
-            status = sq.get('status', 'inconclusive')
-            sources = sq.get('sources', [])
-            
+            status   = sq.get('status', 'inconclusive')
+            method   = sq.get('method', '')
+            sources  = sq.get('sources', [])
+            rationale = sq.get('rationale', '')
+
+            badge  = METHOD_BADGE.get(method, method.replace('_', ' ').title())
+            slabel = STATUS_LABEL.get(status, status.upper())
+
             section += f"### {sq_id}: {question}\n\n"
-            section += f"**Status:** {status.upper()}\n\n"
-            section += f"**Findings:** {findings}\n\n"
-            
+            section += f"**Method:** {badge}  \n"
+            section += f"**Status:** {slabel}  \n"
+            section += f"**Rationale:** {rationale}\n\n"
+            section += f"**Analysis:**\n\n{findings}\n\n"
+
             if sources:
-                section += "**Sources:**\n"
-                for src in sources[:3]:
-                    title = src.get('title', 'Unknown')
-                    url = src.get('url', '')
-                    if url:
-                        section += f"- [{title}]({url})\n"
-                    else:
-                        section += f"- {title}\n"
-                section += "\n"
-            
+                real_sources = [s for s in sources if s.get('url')]
+                if real_sources:
+                    section += "**Supporting sources:**\n"
+                    for src in real_sources[:3]:
+                        section += f"- [{src.get('title','Source')}]({src.get('url','')})\n"
+                    section += "\n"
+
             section += "---\n\n"
-        
+
         return section
     
     def _build_verdict_section(self, verdict: str, verdict_summary: str,
                                 status: str, confidence_level: str,
                                 confidence_score: float, reasoning: str,
                                 limitations: List[str]) -> str:
+        # Confidence bar (ASCII)
+        filled = int(confidence_score * 20)
+        bar = '█' * filled + '░' * (20 - filled)
+
         return f"""## Synthesis & Verdict
 
-### Final Verdict
-
-**Status:** {status.upper()}
+### Final Verdict: {verdict}
 
 {verdict_summary}
 
 ### Confidence Assessment
 
-- **Confidence Level:** {confidence_level}
-- **Confidence Score:** {confidence_score:.2f} (0.0 - 1.0)
+| Metric | Value |
+|--------|-------|
+| **Verdict** | {verdict} |
+| **Confidence Level** | {confidence_level} |
+| **Confidence Score** | {confidence_score:.2f} / 1.00 |
+| **Confidence Bar** | `{bar}` |
 
-The confidence score reflects the strength and consistency of evidence across all sub-questions, 
-accounting for source reliability, evidence quality, and agreement between different research methods.
+The confidence score reflects source reliability, consistency across research methods, and the ratio of supporting to inconclusive findings. Scores above 0.80 indicate High confidence; 0.50–0.79 Medium; below 0.50 Low.
 
-### Reasoning
+### Detailed Reasoning
 
 {reasoning}
 
 ### Limitations
 
-""" + "\n".join(f"- {lim}" for lim in limitations) + """
-
----
-
-"""
+""" + "\n".join(f"- {lim}" for lim in limitations) + "\n\n---\n\n"
     
     def _build_followups_section(self, follow_up_questions: List[str]) -> str:
         section = """## Follow-up Questions
@@ -257,7 +332,7 @@ Based on the investigation, the following questions warrant further exploration:
                     section += f"{i}. **{title}**\n"
                 
                 if snippet:
-                    section += f"   > {snippet[:200]}...\n"
+                    section += f"   > {snippet}\n"
                 section += "\n"
         else:
             section += "*No external sources were cited in this investigation.*\n"
@@ -268,8 +343,9 @@ Based on the investigation, the following questions warrant further exploration:
         return """
 ---
 
-*Report generated by HypothesisEngine - Autonomous Research Assistant*  
-*Research methodology: Structured evidence synthesis across multiple inquiry methods*
+*Report generated by **HypothesisEngine** — Autonomous Research Assistant*
+*Built autonomously by [NEO - Your Fully Autonomous AI Agent](https://heyneo.so)*
+*Research methodology: Structured evidence synthesis across web search, quantitative analysis, and logical reasoning*
 """
     
     def _generate_follow_ups(self, status: str, domain: str, 

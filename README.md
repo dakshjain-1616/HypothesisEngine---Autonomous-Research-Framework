@@ -19,7 +19,11 @@ HypothesisEngine conducts structured investigations by:
 - **Domain Classification**: Automatically identifies research domains (health, economics, technology, etc.)
 - **Evidence Synthesis**: Weighs evidence by source reliability and research method
 - **Source Citation**: All findings cite external sources with URLs
-- **Confidence Scoring**: Provides explicit confidence levels (High/Medium/Low) with justification
+- **Confidence Scoring**: Provides explicit confidence levels (High/Medium/Low) with visual confidence bar
+- **Executive Summary**: At-a-glance verdict table with key finding and primary limitation
+- **Detailed Per-SQ Analysis**: Each sub-question shows method badge, status label, rationale, and full analytical findings
+- **Narrative Reasoning**: Per-method breakdown (web search / quantitative / logical) in the synthesis section
+- **Log File Output**: Full timestamped run log automatically saved alongside the report
 
 ## Installation
 
@@ -87,6 +91,7 @@ python3 src/hypothesis_engine.py \
 | `--hypothesis` | `-H` | Research question to investigate | (interactive prompt) |
 | `--output` | `-o` | Output path for research brief | `reports/research_brief.md` |
 | `--questions` | `-q` | Number of sub-questions (3-6) | `5` |
+| `--log` | `-l` | Path to save full console log | (derived from `--output`) |
 
 ### Python API
 
@@ -164,13 +169,14 @@ Verdict categories:
 ### Step 5: Report Generation
 
 Produces a comprehensive `research_brief.md` containing:
-- Original hypothesis
-- Research plan with sub-questions
-- Findings for each sub-question
-- Final verdict with confidence level
-- Reasoning and limitations
-- Follow-up questions
-- All cited sources
+- **Executive Summary** — at-a-glance verdict table, key finding, and primary limitation
+- Original hypothesis with domain classification
+- Research plan with all sub-questions and rationales
+- **Detailed Findings** — each sub-question with method badge (🔍 📊 🧠), status label (✅ ⚠️ ❌ ❓), and full analysis
+- **Synthesis & Verdict** — final verdict, confidence table, ASCII confidence bar, per-method narrative reasoning
+- Specific limitations and follow-up questions
+- All cited sources with URLs
+- **Log file** — full timestamped run log saved alongside the report
 
 ## Project Structure
 
@@ -208,6 +214,7 @@ The search simulation provides realistic, domain-matched results for: social/men
 ### Console output
 
 ```
+Logging to: reports/final_run1.log
 ============================================================
 HYPOTHESIS ENGINE - Starting Investigation
 ============================================================
@@ -220,11 +227,11 @@ Hypothesis: Social media causes depression in teenagers
 
 [Step 2/5] Building research plan...
   Generated 5 sub-questions
-  SQ01: [web_search]        What do experts say about Social media causes depression in teenagers?
-  SQ02: [web_search]        What mechanisms explain Social media causes depression in teenagers?
-  SQ03: [code_execution]    Can we model Social media causes depression in teenagers mathematically?
-  SQ04: [logical_reasoning] What are the logical implications of Social media causes depression in teenagers?
-  SQ05: [logical_reasoning] What premises must be true for Social media causes depression in teenagers to hold?
+  SQ01: [web_search]        What do experts say about Social media causes depression...
+  SQ02: [web_search]        What mechanisms explain Social media causes depression i...
+  SQ03: [code_execution]    Can we model Social media causes depression in teenagers...
+  SQ04: [logical_reasoning] What would follow if Social media causes depression in t...
+  SQ05: [logical_reasoning] What premises must be true for Social media causes depre...
 
 [Step 3/5] Executing research...
   [1/5] SQ01: web_search
@@ -241,8 +248,11 @@ Hypothesis: Social media causes depression in teenagers
 
 ============================================================
 Investigation Complete!
-Report saved to: reports/research_brief.md
+Report saved to: /root/.../reports/final_run1.md
 ============================================================
+
+Report generated: /root/.../reports/final_run1.md
+Log saved to:     reports/final_run1.log
 ```
 
 ### Sample research briefs
@@ -259,18 +269,36 @@ Three example reports are included in the `reports/` directory:
 
 From `final_run1.md` — investigating *"Social media causes depression in teenagers"*:
 
-**SQ01 — Web search findings:**
-> Longitudinal study of 12,000 adolescents finds associations between heavy social media use
-> (>3h/day) and depression symptoms, but effect sizes are small (r≈0.05) and reverse causality
-> remains plausible. Review of 42 studies reveals mixed findings: passive consumption (scrolling)
-> correlates with worse outcomes, while active social engagement shows neutral or positive effects.
+**Executive Summary (top of report):**
+```
+| Hypothesis   | Social media causes depression in teenagers          |
+| Domain       | Social                                               |
+| Verdict      | PARTIALLY SUPPORTED                                  |
+| Confidence   | Medium (0.62 / 1.00)                                 |
+| Methods used | Code Execution, Logical Reasoning, Web Search        |
+| Sub-questions| 5 total — 2 supporting, 3 partial, 0 refuting        |
+```
 
-**SQ04 — Logical reasoning:**
+**SQ01 — 🔍 Web Search (✅ SUPPORTED):**
+> Evidence from 3 source(s) addresses this question directly. Longitudinal study of 12,000
+> adolescents finds associations between heavy social media use (>3h/day) and depression symptoms,
+> but effect sizes are small (r≈0.05) and reverse causality remains plausible. Review of 42
+> studies reveals mixed findings: passive consumption (scrolling) correlates with worse outcomes,
+> while active social engagement shows neutral or positive effects. Overall the evidence is mixed,
+> with important caveats noted across sources.
+
+**SQ04 — 🧠 Logical Reasoning (⚠️ PARTIALLY SUPPORTED):**
 > If "Social media causes depression in teenagers" is true, several logical consequences would
 > follow: (1) Measurable effects should be observable and replicable across independent studies.
 > (2) Interventions targeting the proposed mechanism should produce predictable outcomes.
 > (3) The effect should be directional — strengthening the cause should amplify the effect and
 > reducing it should attenuate it.
+
+**Confidence bar (Synthesis section):**
+```
+| Confidence Score | 0.62 / 1.00               |
+| Confidence Bar   | ████████████░░░░░░░░      |
+```
 
 **Final verdict:**
 > **PARTIALLY SUPPORTED** — Evidence is mixed with 2 supporting, 0 refuting, and 3 partial

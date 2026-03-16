@@ -434,11 +434,29 @@ class WebSearchExecutor:
         return self.DOMAIN_RESULTS["general"][:num_results]
 
     def extract_key_findings(self, results: List[Dict]) -> str:
-        """Extract key findings from search results."""
+        """Synthesise search results into an analytical findings paragraph."""
         if not results:
             return "No findings available from search results."
-        findings = [r.get("snippet", "")[:200] for r in results[:3] if r.get("snippet")]
-        return " ".join(findings) if findings else "Search completed but no clear findings extracted."
+
+        snippets = [r.get("snippet", "") for r in results[:3] if r.get("snippet")]
+        if not snippets:
+            return "Search completed but no clear findings extracted."
+
+        # Build an analytical paragraph rather than raw concatenation
+        intro = f"Evidence from {len(snippets)} source(s) addresses this question directly. "
+        body = " ".join(s.rstrip(". ") + "." for s in snippets)
+        # Assess tone of evidence
+        supporting_words = ["positive", "improves", "increases", "supports", "shows", "finds", "effective"]
+        mixed_words = ["mixed", "however", "but", "limited", "varies", "uncertainty", "plausible", "unclear"]
+        text_lower = body.lower()
+        if any(w in text_lower for w in mixed_words):
+            tone = "Overall the evidence is mixed, with important caveats noted across sources."
+        elif any(w in text_lower for w in supporting_words):
+            tone = "The weight of evidence from these sources leans supportive, though effect sizes and contexts vary."
+        else:
+            tone = "The evidence base on this question remains limited in scope."
+
+        return intro + body + " " + tone
 
 
 class CodeExecutor:
